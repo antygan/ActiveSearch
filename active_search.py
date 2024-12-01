@@ -134,6 +134,139 @@ def create_data(batch_size, num_cores, cols):
     data = torch.from_numpy(np.array(data).astype('float32'))
     return data
 
+def visualize_graph(graph):
+    # Draw the graph using NetworkX and Matplotlib
+    pos = nx.spring_layout(graph)  # positions for all nodes
+    nx.draw(graph, pos, with_labels=True, node_color='lightblue', edge_color='gray', node_size=500, font_size=10)
+
+    # Display the graph
+    plt.title("Graph Visualization")
+    plt.show()
+
+# def visualize_graph(graph):
+#     # Draw the graph using NetworkX and Matplotlib
+#     pos = nx.get_node_attributes(graph, 'pos')
+#     labels = {node: data['label'] for node, data in graph.nodes(data=True) if data['label'] is not None}
+#     nx.draw(graph, pos, labels=labels, with_labels=True, node_color='lightblue', edge_color='gray', node_size=500, font_size=10)
+
+#     # Display the graph
+#     plt.title("Graph Visualization")
+#     plt.show()
+
+# def create_data(batch_size, num_cores, cols):
+#     """
+#     Generates a batch of data representing core positions in a grid.
+
+#     Args:
+#         batch_size (int): The number of data samples to generate.
+#         num_cores (int): The total number of cores.
+#         cols (int): The number of columns in the grid.
+
+#     Returns:
+#         torch.Tensor: A tensor of shape (batch_size, num_cores, 2) containing the positions of the cores.
+#     """
+#     core_positions = []
+
+#      # Calculate the row and column for each core
+#     for i in range(num_cores):
+#         row = (i // cols) + 1  # Convert to 1-based index
+#         col = (i % cols) + 1   # Convert to 1-based index
+#         core_positions.append((row, col))
+
+#     data=[]
+#     dir = np.zeros(shape=[num_cores,2])
+#     for i in range(num_cores):
+#         dir[i,0] = (i//cols)
+#         dir[i,1] = (i%cols)
+#     for i in range(batch_size):
+#         data.append(dir)
+#     data = torch.from_numpy(np.array(data).astype('float32'))
+
+#     print(core_positions)
+#     return core_positions, data
+
+# def generate_positions(mesh_dims):
+#     """Generate positions for a given mesh dimension."""
+#     if mesh_dims is None:
+#         raise ValueError("Mesh dimensions must be provided")
+#     rows, cols = mesh_dims
+#     return [(r, c) for r in range(1, rows + 1) for c in range(1, cols + 1)]
+
+# def generate_edges(mesh_dims):
+#     """Generate edges for a grid with given dimensions."""
+#     edges = []
+#     rows, cols = mesh_dims
+#     # Add edges for rows
+#     for r in range(rows):
+#         for c in range(cols - 1):
+#             node = r * cols + c + 1
+#             edges.append((node, node + 1))
+
+#     # Add edges for columns
+#     for c in range(cols):
+#         for r in range(rows - 1):
+#             node = r * cols + c + 1
+#             edges.append((node, node + cols))
+
+#     return edges
+
+# def prep_data(num_cores, test=True):
+#     """
+#     Prepares data for a given number of cores.
+#     Parameters:
+#     num_cores (int): The number of cores to prepare data for.
+#     test (bool): If True, use benchmark data files. Default is True.
+#     Returns:
+#     tuple: A tuple containing:
+#         - data (various): The prepared data.
+#         - cores (list): A list of lists, each containing Core objects.
+#         - io (list): A list of lists, each containing I/O pairs.
+#         - dims (list): A list containing the dimensions of the graph.
+#         - graph (networkx.Graph): The graph representing the core connections.
+#     """
+#     file = open(f"/content/benchmarks_copy.txt", 'r')
+#     lines = file.readlines()
+#     batch_size = len(lines)//num_cores
+#     cores = [[] for _ in range(batch_size)]
+#     for i, line in enumerate(lines):
+#         data = line.split()
+#         cores[i // num_cores].append((int(data[0]), data[1], int(data[2]), int(data[3]), int(data[4])))
+
+#     data = None
+#     graph = None
+#     dims = None
+
+#     if num_cores == 7:
+#         io = [[2, 7], [3, 6]]
+#         dims = [3, 3]  # Ensure dims is assigned here
+#         graph = nx.Graph()
+
+#         # Generate positions for a 3x3 grid
+#         positions = generate_positions(dims)
+#         core_positions, data = create_data(batch_size, 7, 3)
+
+#         # # Add nodes for all positions, but only label core positions
+#         for idx, pos in enumerate(positions, start=1):
+#             label = idx if pos in core_positions else None
+#             print(idx, pos)
+#             graph.add_node(idx, pos=pos, label=label)
+
+#         # Define edges based on adjacency in the grid
+#         # edges = [
+#         #     (1, 2), (2, 3),  # Row 1
+#         #     (4, 5), (5, 6),  # Row 2
+#         #     (7, 8), (8, 9),  # Row 3
+#         #     (1, 4), (4, 7),  # Column 1
+#         #     (2, 5), (5, 8),  # Column 2
+#         #     (3, 6), (6, 9)   # Column 3
+#         # ]
+#         edges = generate_edges(dims)
+#         graph.add_edges_from(edges)
+
+
+#     # Other cases remain unchanged...
+
+#     return data, cores, io, dims, graph
 def prep_data(num_cores, test=True):
     """
     Prepares data for a given number of cores.
@@ -444,7 +577,7 @@ def check_path_conflict(dir, core1, src1, sink1, core2, src2, sink2):
     xc1 = dir[core1][1].item()
     yk1 = dir[sink1][0].item()
     xk1 = dir[sink1][1].item()
-    ys2 = dir[src2][0].item()keys are node identifiers and values
+    ys2 = dir[src2][0].item()
     xs2 = dir[src2][1].item()
     yc2 = dir[core2][0].item()
     xc2 = dir[core2][1].item()
