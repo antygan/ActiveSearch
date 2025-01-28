@@ -17,9 +17,9 @@ from queue import PriorityQueue
 scaler = StandardScaler()
 # print(torch.cuda.is_available())
 # from torch_scatter import scatter
-    
+
 """# Preprocessing"""
-    
+
 class Core():
     """
     A class used to represent a Core in a benchmarking system.
@@ -40,14 +40,14 @@ class Core():
     __init__(self, id, benchmark, core_no, patterns, scan)
         Initializes the Core with the given id, benchmark, core number, patterns, and scanchain length
     """
-    
+
     def __init__(self, id, benchmark, core_no, patterns, scan):
         self.id = id
         self.benchmark = benchmark
         self.core_no = core_no
         self.patterns = patterns
         self.scan = scan
-        
+
 class IOPair():
     """
     IOPair class represents a pair of input (src) and output (sink).
@@ -62,7 +62,7 @@ class IOPair():
     def __init__(self, src, sink):
         self.src = src
         self.sink = sink
-       
+
 
 
 def generateSamples(num_samples):
@@ -267,6 +267,7 @@ def visualize_graph(graph):
 #     # Other cases remain unchanged...
 
 #     return data, cores, io, dims, graph
+
 def prep_data(num_cores, test=True):
     """
     Prepares data for a given number of cores.
@@ -503,7 +504,7 @@ def prep_data(num_cores, test=True):
             edge=[first1[i], second1[i]]
             edges.append(edge)
         graph.add_edges_from(edges)
-   
+
         edges=[]
         first1= [1, 2, 3, 4, 5 ,6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 1, 2, 3, 4, 5, 6, 7, 8]
         second1=[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,16,15,14,13,12,11,10,9]
@@ -511,8 +512,8 @@ def prep_data(num_cores, test=True):
             edge=[first1[i]+32, second1[i]+32]
             edges.append(edge)
         graph.add_edges_from(edges)
-        
-        edges=[]       
+
+        edges=[]
         first1 = [1, 2, 3, 4, 5, 6, 7]
         second1 = [2, 3, 4, 5, 6, 7, 8]
 
@@ -591,7 +592,7 @@ def check_path_conflict(dir, core1, src1, sink1, core2, src2, sink2):
   # print(xs2, ys2)
   # print(xk2, yk2)
 
-    if (xs1-xc1)*(xs2-xc2) > 0: 
+    if (xs1-xc1)*(xs2-xc2) > 0:
         if not((xc1 <= min(xc2,xs2) and xs1 <= min(xc2,xs2)) or (xc1 >= max(xc2,xs2) and xs1 >= max(xc2,xs2))) and ys1==ys2:
             # print('F')
             return True
@@ -608,7 +609,7 @@ def check_path_conflict(dir, core1, src1, sink1, core2, src2, sink2):
             # print('I')
             return True
     if (ys1-yc1)*(ys2-yc2) > 0:
-        if not((yc1 <= min(yc2,ys2) and ys1 <= min(yc2,ys2)) or (yc1 >= max(yc2,ys2) and ys1 >= max(yc2,ys2))) and xc1==xc2: 
+        if not((yc1 <= min(yc2,ys2) and ys1 <= min(yc2,ys2)) or (yc1 >= max(yc2,ys2) and ys1 >= max(yc2,ys2))) and xc1==xc2:
             # print('J')
             return True
     if (ys1-yc1)*(yc2-yk2) > 0:
@@ -647,132 +648,153 @@ def objFunct(mappings, dir, cores, io_array, dims, graphs):
         - It uses a priority queue to manage passive cores and resolve conflicts.
         - The function checks for path conflicts between cores to ensure efficient allocation.
     """
-    num_samples =  len(mappings)//len(cores) + 1
-    penalty = []
-    orders = []
-    for k,maps in enumerate(mappings):
+        # Step 1: Calculate the number of samples per core mapping
+    num_samples = len(mappings) // len(cores) + 1
+
+    # Step 2: Initialize lists to hold penalties and allocation orders
+    penalty = []  # Stores penalties for each mapping
+    orders = []   # Stores the order of core allocations for each mapping
+
+    # Step 3: Iterate through each mapping in mappings
+    for k, maps in enumerate(mappings):
+        # Step 4: Prepare io_data to group cores by their associated IO paths
         io_data = [[] for _ in range(len(io_array))]
-        for i,m in enumerate(maps):
+        for i, m in enumerate(maps):
             io_data[m].append(i)
-        # print(f"io_data: {io_data}")
-        start_time = [0]*len(maps)
-        global_time = [0]*len(io_array)
-        allocated = [False]*len(maps)
-        in_passive = [False]*len(maps)
-        test_times = [[] for _ in range(len(io_array))]
+
+        # Step 5: Initialize various arrays to track timings and allocation status
+        start_time = [0] * len(maps)   # Step 8
+        global_time = [0] * len(io_array)  # Step 7
+        allocated = [False] * len(maps)  # Tracks whether a core has been allocated
+        in_passive = [False] * len(maps)  # Tracks if a core is in the passive queue
+        test_times = [[] for _ in range(len(io_array))]  # Step 9
+
+        # Step 10: Calculate test times for each core in io_data
         for j in range(len(io_data)):
             for c in range(len(io_data[j])):
-                core=io_data[j][c]+1
-                io = io_array[int(maps[core-1])]
-                src= io[0]-1
-                sink = io[1]-1
-                hsc = hop_counts(graphs, src+1, core)
-                hck = hop_counts(graphs, core, sink+1)
-                l = cores[k//num_samples][j].scan
-                p = cores[k//num_samples][j].patterns
-                time = (max(hsc,hck)+l)*p + (min(hsc,hck)+l-1)
+                core = io_data[j][c] + 1
+                io = io_array[int(maps[core - 1])]
+                src = io[0] - 1
+                sink = io[1] - 1
+                hsc = hop_counts(graphs, src + 1, core)  # Hop count source to core
+                hck = hop_counts(graphs, core, sink + 1)  # Hop count core to sink
+                l = cores[k // num_samples][j].scan  # Core's scanning capability
+                p = cores[k // num_samples][j].patterns  # Core's pattern property
+                time = (max(hsc, hck) + l) * p + (min(hsc, hck) + l - 1)  # Step 11
                 test_times[j].append(time)
-        alloc = []
-        pass_arr = PriorityQueue()
-        # print(f"Test times: {test_times}")
+
+        # Step 13: Initialize allocation and passive priority queue
+        alloc = []  # Stores allocated cores and their end times
+        pass_arr = PriorityQueue()  # Passive queue for unallocated cores
+
+        # Step 14: Main loop for allocation while there are unallocated cores
         while (False in allocated):
         # if (len(pass_arr) == 0) or is_passive(maps, global_time, start_time, pass_arr):
         # print(f"Global time: {global_time}")
         # print(f"Start time: {start_time}")
         # print(f"Current allocations: {alloc}")
         # print(f"Passive Queue: {pass_arr.queue}")
-            temp_passive = []
+            temp_passive = []  # Temporary list for resolving conflicts in the passive queue
+
+            # Step 15: Process cores in the passive queue
             while not pass_arr.empty():
                 strt, core = pass_arr.get()
                 if allocated[core]:
                     continue
-                # print(f"infinite loop, {core}")
-                is_conflict = False
+
+                is_conflict = False  # Flag to detect path conflicts
                 io_idx = maps[core]
                 core_in_io_indx = io_data[io_idx].index(core)
+
                 for a, all in enumerate(alloc):
                     if start_time[core] < all[1]:
-                        # print("FFF", core, alloc)
-                        # Checking for path conflict
+                        # Step 16: Check for path conflicts with already allocated cores
                         core1 = core
-                        src1 = io_array[io_idx][0]-1
-                        sink1 = io_array[io_idx][1]-1
+                        src1 = io_array[io_idx][0] - 1
+                        sink1 = io_array[io_idx][1] - 1
                         core2 = all[0]
-                        src2 = io_array[maps[all[0]]][0]-1
-                        sink2 = io_array[maps[all[0]]][1]-1
+                        src2 = io_array[maps[all[0]]][0] - 1
+                        sink2 = io_array[maps[all[0]]][1] - 1
                         is_conflict = check_path_conflict(dir, core1, src1, sink1, core2, src2, sink2)
-                        # print(core,all[0], is_conflict)
                         if is_conflict:
                             temp_passive.append(core)
                             start_time[core] = max(start_time[core], global_time[maps[all[0]]])
                             break
+
+                # Step 16 continued: Allocate core if no conflicts
                 if not is_conflict:
                     allocated[core] = True
-                    alloc.append((core,start_time[core]+test_times[io_idx][core_in_io_indx]))
-                    global_time[io_idx] = start_time[core]+test_times[io_idx][core_in_io_indx]
+                    alloc.append((core, start_time[core] + test_times[io_idx][core_in_io_indx]))
+                    global_time[io_idx] = start_time[core] + test_times[io_idx][core_in_io_indx]
+
+                    # Update start times for other cores in the same io_data
                     for c in io_data[io_idx]:
                         if not allocated[c]:
                             start_time[c] = max(start_time[c], global_time[io_idx])
+
+                    # Resolve conflicts for cores in temp_passive
                     for conf in temp_passive:
                         start_time[conf] = max(start_time[conf], global_time[io_idx])
-          
-                    break
-            if len(temp_passive) > 0:
-                for c in temp_passive:
-                    pass_arr.put((start_time[c],c))
-                    in_passive[c] = True
 
+                    break
+
+            # Step 17: Process remaining unallocated cores in io_data
             for idx, io in enumerate(io_data):
                 temp_conflict = []
                 for indx, c in enumerate(io):
                     if allocated[c] or in_passive[c]:
                         continue
+
                     is_conflict = False
                     for a, all in enumerate(alloc):
                         if start_time[c] < all[1]:
-                        # Checking for path conflict
+                            # Step 19: Check conflicts with allocated cores
                             core1 = c
-                            src1 = io_array[idx][0]-1
-                            sink1 = io_array[idx][1]-1
+                            src1 = io_array[idx][0] - 1
+                            sink1 = io_array[idx][1] - 1
                             core2 = all[0]
-                            src2 = io_array[maps[all[0]]][0]-1
-                            sink2 = io_array[maps[all[0]]][1]-1
+                            src2 = io_array[maps[all[0]]][0] - 1
+                            sink2 = io_array[maps[all[0]]][1] - 1
                             is_conflict = check_path_conflict(dir, core1, src1, sink1, core2, src2, sink2)
-                            # print(c,all[0], is_conflict)
                             if is_conflict:
                                 temp_conflict.append(c)
                                 start_time[c] = max(start_time[c], global_time[maps[all[0]]])
                                 break
+
+                    # Step 20: Allocate core if no conflicts
                     if not is_conflict:
                         allocated[c] = True
-                        alloc.append((c,start_time[c]+test_times[idx][indx]))
-                        global_time[idx] = start_time[c]+test_times[idx][indx]
+                        alloc.append((c, start_time[c] + test_times[idx][indx]))
+                        global_time[idx] = start_time[c] + test_times[idx][indx]
+
+                        # Update start times for other cores and resolve conflicts
                         for core in io:
                             if not allocated[core]:
                                 start_time[core] = max(start_time[core], global_time[idx])
                         for conf in temp_conflict:
                             start_time[conf] = max(start_time[conf], global_time[idx])
-                            pass_arr.put((start_time[conf],conf))
+                            pass_arr.put((start_time[conf], conf))
                             in_passive[conf] = True
                         temp_conflict = []
                         break
+
                     for c in temp_conflict:
-                        pass_arr.put((start_time[c],c))
+                        pass_arr.put((start_time[c], c))
                         in_passive[c] = True
 
-                    temp = []
-                    while not pass_arr.empty():
-                        start, core = pass_arr.get()
-                        temp.append(core)
-                    for c in temp:
-                        pass_arr.put((start_time[c],c))
+            # Step 15 continued: Refill the passive queue
+            temp = []
+            while not pass_arr.empty():
+                start, core = pass_arr.get()
+                temp.append(core)
+            for c in temp:
+                pass_arr.put((start_time[c], c))
 
-    penalty.append(np.max(global_time)*(-1))
-    orders.append([item[0] for item in alloc])
-  # print(f"Global time: {global_time}")
-  # print(f"Start time: {start_time}")
-    # print(f"Current allocations: {alloc}")
-    # print(f"Passive Queue: {pass_arr.queue}")
+        # Step 23: Append penalty and allocation order
+        penalty.append(np.max(global_time) * -1)  # Negate max global time as penalty
+        orders.append([item[0] for item in alloc])  # Append allocation order
+
+    # Step 25: Return penalties and allocation orders
     return torch.from_numpy(np.array(penalty)), orders
 
 
@@ -792,7 +814,7 @@ def rearrange(x:torch.Tensor, beams_buf:torch.Tensor)->torch.Tensor:
                 .view(-1, x.size(0), x.size(2))\
                     .permute(1,0,2)\
                         .contiguous()
-    
+
 def gumbel_like(*args, **kwargs):
     return _gumbel(torch.rand_like(*args, **kwargs))
 
@@ -837,9 +859,9 @@ def _shift_gumbel_maximum(g_phi, T, dim=-1, Z=None):
         Z, _ = g_phi.max(dim)
     u = T.unsqueeze(dim) - g_phi + torch.log1p(-torch.exp(g_phi - Z.unsqueeze(dim)))
     return T.unsqueeze(dim) - F.relu(u) - torch.log1p(torch.exp(-u.abs()))
-    
+
 """# Model Classes"""
-    
+
 class Encoder(nn.Module):
     def __init__(self, input_dim, hidden_dim, n_layers,
                 p):
@@ -867,7 +889,7 @@ class Encoder(nn.Module):
         seq_len = input.shape[0]
         # reshape output to (seq_len, batch, hidden_dim)
         return output, (hidden, cell)
-    
+
 class Decoder(nn.Module):
     # module for single step of decoding process
     def __init__(self, input_dim, hidden_dim, n_layers, p):
@@ -886,7 +908,7 @@ class Decoder(nn.Module):
         output, (hidden, cell) = self.rnn(input, (hidden, cell))
         output = output.squeeze(0)
         return output, (hidden, cell)
-    
+
 class Attention(nn.Module):
     def __init__(self, enc_dim, dec_dim, logit_clipping=True, clip_value=10):
         super(Attention, self).__init__()
@@ -924,7 +946,7 @@ class Attention(nn.Module):
         attentions, _ = torch.topk(attention, k=num_io, dim=1)
         attentions = attentions.to(device)
         return attentions
-    
+
 class PointerNet(nn.Module):
     def __init__(self, input_dim, hidden_dim, n_layers, p, device, logit_clipping=True, decoding_type = 'sampling'):
         # print("using lstm")
@@ -1072,9 +1094,9 @@ class PointerNet(nn.Module):
             return predicted_mappings, log_probs_sum, g_log_probs
         else:
             return predicted_mappings, log_probs_sum
-    
+
 """# Training Model"""
-    
+
 device = torch.device('cuda:2' if torch.cuda.is_available() else 'cpu')
 
 def epoch_train(data, cores, io_pairs, dims, graphs, model, optimizer, sched, num_samples, best_cost, best_mapping, best_order):
@@ -1172,7 +1194,7 @@ def epoch_rl(data, cores, io_pairs, dims, graphs, model, optimizer, num_samples,
         optimizer.step()
         # sched.step(loss)
         b = alpha*b + (1-alpha)*b_s.mean(dim=0)
-    
+
     return best_cost, best_mapping, losses
 
 
@@ -1192,7 +1214,7 @@ def model_train(numcore, model, optimizer, data, cores, io_pairs, dims, graphs, 
 
         # model.train(True)
         penalty, min_penalty, loss, best_cost, best_mapping, best_order = epoch_train(data, cores, io_pairs, dims, graphs, model, optimizer, scheduler, num_samples, best_cost, best_mapping, best_order)
-        
+
         # model.eval()
         # avg_val_loss, curr_pred = epoch_val()
 
@@ -1227,7 +1249,7 @@ def model_train(numcore, model, optimizer, data, cores, io_pairs, dims, graphs, 
     #plt.legend()
     #plt.savefig(f'loss_curve{idx}.png')
     #print(losses)
-    
+
     return pens, losses, best_cost, best_mapping
 
 def model_rl(numcore, model, optimizer, alpha, data, cores, io_pairs, dims, graphs, num_samples, batch_size, lr, wt_decay, factor, patience, dropout, n_layers, input_dim, hidden_dim, MAX_EPOCH):
@@ -1272,7 +1294,7 @@ def main(args):
     mode = args.mode
     if mode is 'train':
         #---TRAIN---
-        
+
         model = PointerNet(args.input_dim, args.hidden_dim, args.n_layers, args.dropout, device)
         optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.wt_decay)
         model.load_state_dict(torch.load(f'ordered_active_search_48cores.pt'))
@@ -1287,7 +1309,7 @@ def main(args):
 
     elif mode is 'rl':
         #---RL---
-        
+
         model = PointerNet(args.input_dim, args.hidden_dim, args.n_layers, args.dropout, device)
         optimizer = torch.optim.Adam(model.parameters(), lr=args.lr, weight_decay=args.wt_decay)
         numcore = [args.num_cores]
@@ -1297,12 +1319,12 @@ def main(args):
             model_rl(c, model, optimizer, args.alpha, data, cores, io_pairs, dims, graphs, args.num_samples, args.batch_size, args.lr, args.wt_decay, args.factor, args.patience, args.dropout, args.n_layers, args.input_dim, args.hidden_dim, args.epoch)
             torch.save(model.state_dict(), f'ordered_active_search_rl_{c}cores_{args.alpha}.pt')
             torch.save(optimizer.state_dict(), f'ordered_opt_rl_{c}cores_{args.alpha}.pt')
-    
+
         #---RL---
 
     elif mode is 'test':
         #---TEST---
-        
+
         numcore = [args.num_cores]
         model = PointerNet(args.input_dim, args.hidden_dim, args.n_layers, args.dropout, device)
         model.load_state_dict(torch.load(f'fixed_active_search_rl_{args.num_cores}cores_0.99.pt'))
@@ -1323,7 +1345,7 @@ def main(args):
         print(mappings)
 
         #---TEST---
-    
+
     else:
         print("Wrong mode argument")
 
@@ -1346,7 +1368,7 @@ if __name__ == '__main__':
     parser.add_argument("--n_layers", help="num_layer_encoder", type=int, default=2)
     parser.add_argument("--input_dim", help="input_dim_enc", type=int, default=2)
     parser.add_argument("--hidden_dim", help="hidden_dim", type=int, default=2)
-#og value =1 
+#og value =1
     parser.add_argument("--epoch", help="MAX_EPOCH", type=int, default=10000)
     parser.add_argument("--num_cores", type=int, default=7)
     parser.add_argument("--num_test_iter", help="number of test iterations", type=int, default=50)
