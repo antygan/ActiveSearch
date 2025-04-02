@@ -64,7 +64,6 @@ class IOPair():
         self.sink = sink
 
 
-
 def generateSamples(num_samples):
     """
     Generates a specified number of samples, each containing a 64x2 array of directional data.
@@ -112,6 +111,17 @@ def generateSamples(num_samples):
     data = torch.from_numpy(np.array(data).astype('float32'))
     return data
 
+def visualize_graph(graph):
+    # Draw the graph using NetworkX and Matplotlib
+    pos = nx.get_node_attributes(graph, 'pos')
+    labels = {node: data['label'] for node, data in graph.nodes(data=True) if data['label'] is not None}
+    nx.draw(graph, pos, labels=labels, with_labels=True, node_color='lightblue', edge_color='gray', node_size=500, font_size=10)
+
+    # Display the graph
+    plt.title("Graph Visualization")
+    plt.show()
+
+
 def create_data(batch_size, num_cores, cols):
     """
     Generates a batch of data representing core positions in a grid.
@@ -124,149 +134,52 @@ def create_data(batch_size, num_cores, cols):
     Returns:
         torch.Tensor: A tensor of shape (batch_size, num_cores, 2) containing the positions of the cores.
     """
+    core_positions = []
+
+     # Calculate the row and column for each core
+    for i in range(num_cores):
+        row = (i // cols) + 1  # Convert to 1-based index, used only to draw the NoC
+        col = (i %  cols) + 1  # Convert to 1-based index, used only to draw the NoC
+        core_positions.append((row, col))
+
     data=[]
     dir = np.zeros(shape=[num_cores,2])
     for i in range(num_cores):
-        dir[i,0] = i//cols
-        dir[i,1] = i%cols
+        dir[i,0] = (i // cols) # 0 based index, dir[i,0] -> x coordinate of the core
+        dir[i,1] = (i %  cols) # 0 based index, dir[i,1] -> y coordinate of the core
     for i in range(batch_size):
         data.append(dir)
     data = torch.from_numpy(np.array(data).astype('float32'))
-    return data
 
-def visualize_graph(graph):
-    # Draw the graph using NetworkX and Matplotlib
-    pos = nx.spring_layout(graph)  # positions for all nodes
-    nx.draw(graph, pos, with_labels=True, node_color='lightblue', edge_color='gray', node_size=500, font_size=10)
-
-    # Display the graph
-    plt.title("Graph Visualization")
-    plt.show()
-
-# def visualize_graph(graph):
-#     # Draw the graph using NetworkX and Matplotlib
-#     pos = nx.get_node_attributes(graph, 'pos')
-#     labels = {node: data['label'] for node, data in graph.nodes(data=True) if data['label'] is not None}
-#     nx.draw(graph, pos, labels=labels, with_labels=True, node_color='lightblue', edge_color='gray', node_size=500, font_size=10)
-
-#     # Display the graph
-#     plt.title("Graph Visualization")
-#     plt.show()
-
-# def create_data(batch_size, num_cores, cols):
-#     """
-#     Generates a batch of data representing core positions in a grid.
-
-#     Args:
-#         batch_size (int): The number of data samples to generate.
-#         num_cores (int): The total number of cores.
-#         cols (int): The number of columns in the grid.
-
-#     Returns:
-#         torch.Tensor: A tensor of shape (batch_size, num_cores, 2) containing the positions of the cores.
-#     """
-#     core_positions = []
-
-#      # Calculate the row and column for each core
-#     for i in range(num_cores):
-#         row = (i // cols) + 1  # Convert to 1-based index
-#         col = (i % cols) + 1   # Convert to 1-based index
-#         core_positions.append((row, col))
-
-#     data=[]
-#     dir = np.zeros(shape=[num_cores,2])
-#     for i in range(num_cores):
-#         dir[i,0] = (i//cols)
-#         dir[i,1] = (i%cols)
-#     for i in range(batch_size):
-#         data.append(dir)
-#     data = torch.from_numpy(np.array(data).astype('float32'))
-
-#     print(core_positions)
-#     return core_positions, data
-
-# def generate_positions(mesh_dims):
-#     """Generate positions for a given mesh dimension."""
-#     if mesh_dims is None:
-#         raise ValueError("Mesh dimensions must be provided")
-#     rows, cols = mesh_dims
-#     return [(r, c) for r in range(1, rows + 1) for c in range(1, cols + 1)]
-
-# def generate_edges(mesh_dims):
-#     """Generate edges for a grid with given dimensions."""
-#     edges = []
-#     rows, cols = mesh_dims
-#     # Add edges for rows
-#     for r in range(rows):
-#         for c in range(cols - 1):
-#             node = r * cols + c + 1
-#             edges.append((node, node + 1))
-
-#     # Add edges for columns
-#     for c in range(cols):
-#         for r in range(rows - 1):
-#             node = r * cols + c + 1
-#             edges.append((node, node + cols))
-
-#     return edges
-
-# def prep_data(num_cores, test=True):
-#     """
-#     Prepares data for a given number of cores.
-#     Parameters:
-#     num_cores (int): The number of cores to prepare data for.
-#     test (bool): If True, use benchmark data files. Default is True.
-#     Returns:
-#     tuple: A tuple containing:
-#         - data (various): The prepared data.
-#         - cores (list): A list of lists, each containing Core objects.
-#         - io (list): A list of lists, each containing I/O pairs.
-#         - dims (list): A list containing the dimensions of the graph.
-#         - graph (networkx.Graph): The graph representing the core connections.
-#     """
-#     file = open(f"/content/benchmarks_copy.txt", 'r')
-#     lines = file.readlines()
-#     batch_size = len(lines)//num_cores
-#     cores = [[] for _ in range(batch_size)]
-#     for i, line in enumerate(lines):
-#         data = line.split()
-#         cores[i // num_cores].append((int(data[0]), data[1], int(data[2]), int(data[3]), int(data[4])))
-
-#     data = None
-#     graph = None
-#     dims = None
-
-#     if num_cores == 7:
-#         io = [[2, 7], [3, 6]]
-#         dims = [3, 3]  # Ensure dims is assigned here
-#         graph = nx.Graph()
-
-#         # Generate positions for a 3x3 grid
-#         positions = generate_positions(dims)
-#         core_positions, data = create_data(batch_size, 7, 3)
-
-#         # # Add nodes for all positions, but only label core positions
-#         for idx, pos in enumerate(positions, start=1):
-#             label = idx if pos in core_positions else None
-#             print(idx, pos)
-#             graph.add_node(idx, pos=pos, label=label)
-
-#         # Define edges based on adjacency in the grid
-#         # edges = [
-#         #     (1, 2), (2, 3),  # Row 1
-#         #     (4, 5), (5, 6),  # Row 2
-#         #     (7, 8), (8, 9),  # Row 3
-#         #     (1, 4), (4, 7),  # Column 1
-#         #     (2, 5), (5, 8),  # Column 2
-#         #     (3, 6), (6, 9)   # Column 3
-#         # ]
-#         edges = generate_edges(dims)
-#         graph.add_edges_from(edges)
+    return core_positions, data
 
 
-#     # Other cases remain unchanged...
+def generate_positions(mesh_dims):
+    """Generate core positions (1 based) for a given mesh dimension."""
+    if mesh_dims is None:
+        raise ValueError("Mesh dimensions must be provided")
+    rows, cols = mesh_dims
+    return [(r, c) for r in range(1, rows + 1) for c in range(1, cols + 1)]
 
-#     return data, cores, io, dims, graph
+
+def generate_edges(mesh_dims):
+    """Generate edges for a grid with given dimensions."""
+    edges = []
+    rows, cols = mesh_dims
+    # Add edges for rows
+    for r in range(rows):
+        for c in range(cols - 1):
+            node = r * cols + c + 1
+            edges.append((node, node + 1))
+
+    # Add edges for columns
+    for c in range(cols):
+        for r in range(rows - 1):
+            node = r * cols + c + 1
+            edges.append((node, node + cols))
+
+    return edges
+
 
 def prep_data(num_cores, test=True):
     """
@@ -286,256 +199,72 @@ def prep_data(num_cores, test=True):
     file = open(f"data_{num_cores}cores.txt", 'r')
     if test:
         file = open(f"bm_{num_cores}cores.txt", 'r')
+
     lines = file.readlines()
     batch_size = len(lines)//num_cores
     cores = [[] for _ in range(batch_size)]
-    for i,line in enumerate(lines):
+    for i in range(len(lines)):
+        if i // num_cores >= batch_size: # extra precaution if number of lines in file is not an integer multiple of batch_size
+            break
+        line = lines[i]
         data = line.split()
-        cores[i//num_cores].append(Core(int(data[0]), data[1], int(data[2]), int(data[3]), int(data[4])))
-
+        cores[i // num_cores].append((int(data[0]), data[1], int(data[2]), int(data[3]), int(data[4])))
 
     data = None
     graph = None
     dims = None
+
     if num_cores == 7:
-        io = [[2,7], [3,6]]
-        graph = nx.Graph()
-        for i in range(1,8):
-            graph.add_node(i)
-        edges=[]
-        first1=[1, 2, 3, 4, 1, 2, 5, 6]
-        second1=[4, 5, 6, 7, 2, 3, 4, 5]
-        for i in range(len(first1)):
-            edge=[first1[i], second1[i]]
-            edges.append(edge)
-        graph.add_edges_from(edges)
-        dims = [3,3]
-        data = create_data(batch_size, 7, 3)
+        io = [[2, 7], [3, 6]]
+        dims = [3, 3]
     elif num_cores == 8:
         io = [[1,2], [3,7]]
-        graph=nx.Graph()
-        for i in range(1,8):
-          graph.add_node(i)
-        edges=[]
-        first1 = [1,1,2,2,3,3,4,5,6,7]
-        second1 = [2,5,3,6,4,7,8,6,7,8]
-        for i in range(len(first1)):
-            edge=[first1[i], second1[i]]
-            edges.append(edge)
-        graph.add_edges_from(edges)
         dims = [2,4]
-        data = create_data(batch_size,8,4)
     elif num_cores == 10:
         io = [[1,7], [2,6], [3,10]]
-        graph = nx.Graph()
-        for i in range(1,11):
-            graph.add_node(i)
-        edges=[]
-        first1=[1 ,2 ,3 ,4, 1, 2, 3, 5, 6, 5, 6, 7, 9]
-        second1=[5, 6, 7, 8, 2, 3, 4, 9, 10, 6, 7, 8, 10]
-        for i in range(len(first1)):
-            edge=[first1[i], second1[i]]
-            edges.append(edge)
-        graph.add_edges_from(edges)
         dims = [3,4]
-        data = create_data(batch_size, 10, 4)
     elif num_cores == 14:
         io = [[3,6], [4,10]]
-        graph = nx.Graph()
-        for i in range(1,15):
-            graph.add_node(i)
-        edges=[]
-        first1=[1 ,2, 3, 4, 5, 6, 7, 1, 2, 3, 4, 5, 6, 8, 9, 10, 11, 12, 13]
-        second1=[8, 9, 10, 11, 12, 13, 14, 2, 3, 4, 5, 6, 7, 9, 10, 11, 12, 13, 14]
-        for i in range(len(first1)):
-            edge=[first1[i], second1[i]]
-            edges.append(edge)
-        graph.add_edges_from(edges)
         dims = [2,7]
-        data = create_data(batch_size, 14, 7)
     elif num_cores == 16:
         io = [[2,4], [5,9], [13,14], [12,16]]
-        graph = nx.Graph()
-        for i in range(1,17):
-            graph.add_node(i)
-        edges=[]
-        first1=[1,1,2,2,3,3,4,5,5,6,6,7,7,8,9,9,10,10,11,11,12,13,14,15]
-        second1=[2,5,3,6,4,7,8,6,9,7,10,8,11,12,13,10,14,11,15,12,16,14,15,16]
-        for i in range(len(first1)):
-            edge=[first1[i], second1[i]]
-            edges.append(edge)
-        graph.add_edges_from(edges)
         dims = [4,4]
-        data = create_data(batch_size, 16, 4)
     elif num_cores == 28:
         io = [[5,12], [8,16], [9,17], [13,20]]
-        graph = nx.Graph()
-        for i in range(1,29):
-            graph.add_node(i)
-        edges=[]
-        first1=[1, 2, 3, 1, 2, 3, 4, 5, 6, 7, 5, 6, 7, 8, 9, 10, 11, 9, 10, 11, 12, 13, 14, 15, 13, 14, 15, 16, 17, 18, 19, 17, 18, 19, 20, 21, 22, 23, 21, 22, 23, 24, 25, 26, 27]
-        second1=[2, 3, 4, 5, 6, 7, 8, 6, 7, 8, 9, 10, 11, 12, 10, 11, 12, 13, 14, 15, 16, 14, 15, 16, 17, 18, 19, 20, 18, 19, 20, 21, 22, 23, 24, 22, 23, 24, 25, 26, 27, 28, 26, 27, 28]
-        for i in range(len(first1)):
-            edge=[first1[i], second1[i]]
-            edges.append(edge)
-        graph.add_edges_from(edges)
         dims = [7,4]
-        data = create_data(batch_size, 28, 4)
     elif num_cores == 32:
         io = [[1,4], [9,12], [17,20], [25,28]]
-        graph = nx.Graph()
-        for i in range(1,33):
-            graph.add_node(i)
-        edges=[]
-        first1=[1, 2, 3, 1, 2, 3, 4, 5, 6, 7, 5, 6, 7, 8, 9, 10, 11, 9, 10, 11, 12, 13, 14, 15, 13, 14, 15, 16, 17, 18, 19, 17, 18, 19, 20, 21, 22, 23, 21, 22, 23, 24, 25, 26, 27, 25, 26, 27, 28, 29, 30, 31]
-        second1=[2, 3, 4, 5, 6, 7, 8, 6, 7, 8, 9, 10, 11, 12, 10, 11, 12, 13, 14, 15, 16, 14, 15, 16, 17, 18, 19, 20, 18, 19, 20, 21, 22, 23, 24, 22, 23, 24, 25, 26, 27, 28, 26, 27, 28, 29, 30, 31, 32, 30, 31, 32]
-        for i in range(len(first1)):
-            edge=[first1[i], second1[i]]
-            edges.append(edge)
-        graph.add_edges_from(edges)
         dims = [8,4]
-        data = create_data(batch_size, 32, 4)
     elif num_cores == 64:
         io = [[13,17], [33,40], [44,52], [61,63]]
-        graph = nx.Graph()
-        for i in range(1,65):
-            graph.add_node(i)
-        edges=[]
-        first1=[1, 2, 3, 1, 2, 3, 4, 5, 6, 7, 5, 6, 7, 8, 9, 10, 11, 9, 10, 11, 12, 13, 14, 15, 13, 14, 15, 16, 17, 18, 19, 17, 18, 19, 20, 21, 22, 23, 21, 22, 23, 24, 25, 26, 27, 25, 26, 27, 28, 29, 30, 31]
-        second1=[2, 3, 4, 5, 6, 7, 8, 6, 7, 8, 9, 10, 11, 12, 10, 11, 12, 13, 14, 15, 16, 14, 15, 16, 17, 18, 19, 20, 18, 19, 20, 21, 22, 23, 24, 22, 23, 24, 25, 26, 27, 28, 26, 27, 28, 29, 30, 31, 32, 30, 31, 32]
-        for i in range(len(first1)):
-            edge=[first1[i], second1[i]]
-            edges.append(edge)
-        graph.add_edges_from(edges)
-
-        edges=[]
-        first1=[1, 2, 3, 1, 2, 3, 4, 5, 6, 7, 5, 6, 7, 8, 9, 10, 11, 9, 10, 11, 12, 13, 14, 15, 13, 14, 15, 16, 17, 18]
-        second1=[2, 3, 4, 5, 6, 7, 8, 6, 7, 8, 9, 10, 11, 12, 10, 11, 12, 13, 14, 15, 16, 14, 15, 16, 17, 18, 19, 19, 18, 19]
-        for i in range(len(first1)):
-            if first1[i]<17 and second1[i]<17:
-                edge=[first1[i]+32, second1[i]+32]
-                edges.append(edge)
-        graph.add_edges_from(edges)
-
-        edges=[]
-        first1=[1 ,2 ,3 ,1 ,2, 3, 4, 5, 6, 7, 5, 6, 7, 8, 9, 10, 11, 9, 10, 11, 12, 13, 14, 15, 13, 14, 15, 16, 17, 18, 19, 17, 18, 19, 20, 21, 22, 23, 21, 22, 23, 24, 25, 26, 27 ]
-        second1=[2, 3, 4, 5, 6, 7, 8, 6, 7, 8, 9, 10, 11, 12, 10, 11, 12, 13,14, 15, 16, 14, 15, 16, 17, 18, 19, 20, 18, 19, 20, 21, 22, 23, 24, 22, 23, 24, 25, 26, 27, 28, 26, 27, 28]
-
-        for i in range(len(first1)):
-            if first1[i]<17 and second1[i]<17:
-                edge=[first1[i]+48, second1[i]+48]
-                edges.append(edge)
-        graph.add_edges_from(edges)
-
-        for i in range(4,33,4):
-            graph.add_edge(i, i+29)
-
-        for i in range(45,49):
-            graph.add_edge(i,i+4)
         dims = [8,8]
-        data = generateSamples(batch_size)
-        #data = create_data(batch_size, 40, 5)
     elif num_cores == 40:
         io = [[1, 35], [4,12], [30,32], [37, 39]]
-        graph = nx.Graph()
-        for i in range(1,41):
-            graph.add_node(i)
-        edges=[]
-        first1=[1, 2, 3, 1, 2, 3, 4, 5, 6, 7, 5, 6, 7, 8, 9, 10, 11, 9, 10, 11, 12, 13, 14, 15, 13, 14, 15, 16, 17, 18, 19, 17, 18, 19, 20, 21, 22, 23, 21, 22, 23, 24, 25, 26, 27, 25, 26, 27, 28, 29, 30, 31]
-        second1=[2, 3, 4, 5, 6, 7, 8, 6, 7, 8, 9, 10, 11, 12, 10, 11, 12, 13, 14, 15, 16, 14, 15, 16, 17, 18, 19, 20, 18, 19, 20, 21, 22, 23, 24, 22, 23, 24, 25, 26, 27, 28, 26, 27, 28, 29, 30, 31, 32, 30, 31, 32]
-        for i in range(len(first1)):
-            edge=[first1[i], second1[i]]
-            edges.append(edge)
-        graph.add_edges_from(edges)
-
-        first1 = [1, 2, 3, 4, 5, 6, 7]
-        second1 = [2, 3, 4, 5, 6, 7, 8]
-
-        for i in range(len(first1)):
-            edge = [second1[i]+32, first1[i]+32]
-            edges.append(edge)
-        graph.add_edges_from(edges)
-
-        for i in range(0, 8):
-            edge  = [4*i+1, 33+i]
-            edges.append(edge)
-        graph.add_edges_from(edges)
         dims = [8,5]
-        #data = generateSamples(batch_size)
-        data = create_data(batch_size, 40, 5)
     elif num_cores == 48:
         io = [[3,5], [21,30], [32,34], [38, 40]]
-        graph = nx.Graph()
-        for i in range(1,49):
-            graph.add_node(i)
-        edges=[]
-        first1=[1, 2, 3, 1, 2, 3, 4, 5, 6, 7, 5, 6, 7, 8, 9, 10, 11, 9, 10, 11, 12, 13, 14, 15, 13, 14, 15, 16, 17, 18, 19, 17, 18, 19, 20, 21, 22, 23, 21, 22, 23, 24, 25, 26, 27, 25, 26, 27, 28, 29, 30, 31]
-        second1=[2, 3, 4, 5, 6, 7, 8, 6, 7, 8, 9, 10, 11, 12, 10, 11, 12, 13, 14, 15, 16, 14, 15, 16, 17, 18, 19, 20, 18, 19, 20, 21, 22, 23, 24, 22, 23, 24, 25, 26, 27, 28, 26, 27, 28, 29, 30, 31, 32, 30, 31, 32]
-        for i in range(len(first1)):
-            edge=[first1[i], second1[i]]
-            edges.append(edge)
-        graph.add_edges_from(edges)
-
-
-        edges=[]
-        first1= [1, 2, 3, 4, 5 ,6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 1, 2, 3, 4, 5, 6, 7, 8]
-        second1=[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,16,15,14,13,12,11,10,9]
-        for i in range(len(first1)):
-            edge=[first1[i]+32, second1[i]+32]
-            edges.append(edge)
-        graph.add_edges_from(edges)
-
-        for i in range(1, 9):
-            edge = [4*i, i+40]
-            edges.append(edge)
-            graph.add_edges_from(edges)
         dims = [8,6]
-        #data = generateSamples(batch_size)
-        data = create_data(batch_size, 48, 6)
     elif num_cores == 56:
-        edges = []
         io = [[3,5], [21,30], [32,34], [38, 40]]
-        graph = nx.Graph()
-        for i in range(1, 57):
-            graph.add_node(i)
-        first1=[1, 2, 3, 1, 2, 3, 4, 5, 6, 7, 5, 6, 7, 8, 9, 10, 11, 9, 10, 11, 12, 13, 14, 15, 13, 14, 15, 16, 17, 18, 19, 17, 18, 19, 20, 21, 22, 23, 21, 22, 23, 24, 25, 26, 27, 25, 26, 27, 28, 29, 30, 31]
-        second1=[2, 3, 4, 5, 6, 7, 8, 6, 7, 8, 9, 10, 11, 12, 10, 11, 12, 13, 14, 15, 16, 14, 15, 16, 17, 18, 19, 20, 18, 19, 20, 21, 22, 23, 24, 22, 23, 24, 25, 26, 27, 28, 26, 27, 28, 29, 30, 31, 32, 30, 31, 32]
-        for i in range(len(first1)):
-            edge=[first1[i], second1[i]]
-            edges.append(edge)
-        graph.add_edges_from(edges)
-
-        edges=[]
-        first1= [1, 2, 3, 4, 5 ,6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 1, 2, 3, 4, 5, 6, 7, 8]
-        second1=[2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16,16,15,14,13,12,11,10,9]
-        for i in range(len(first1)):
-            edge=[first1[i]+32, second1[i]+32]
-            edges.append(edge)
-        graph.add_edges_from(edges)
-
-        edges=[]
-        first1 = [1, 2, 3, 4, 5, 6, 7]
-        second1 = [2, 3, 4, 5, 6, 7, 8]
-
-        for i in range(len(first1)):
-            edge = [second1[i]+48, first1[i]+48]
-            edges.append(edge)
-        graph.add_edges_from(edges)
-
-        for i in range(1, 9):
-            edge = [4*i, i+40]
-            edges.append(edge)
-        graph.add_edges_from(edges)
-
-        for i in range(33, 41):
-            edge = [i, i+16]
-            edges.append(edge)
-        graph.add_edges_from(edges)
         dims = [8,7]
-        #data = generateSamples(batch_size)
-        data = create_data(batch_size, 56, 7)
+
+    core_positions, data = create_data(batch_size, num_cores, dims[1])
+
+    # Generate positions for a mxn mesh
+    positions = generate_positions(dims)
+
+    # # Add nodes for all positions, but only label core positions
+    for idx, pos in enumerate(positions, start=1):
+        label = idx if pos in core_positions else None
+        print(idx, pos)
+        graph.add_node(idx, pos=pos, label=label)
+
+    # Define edges based on adjacency in the grid
+    edges = generate_edges(dims)
+    graph.add_edges_from(edges)
 
     return data, cores, io, dims, graph
+
 
 def hop_counts(G, source, target):
     """
